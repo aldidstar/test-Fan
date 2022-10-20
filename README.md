@@ -1,6 +1,7 @@
 # Dokumentasi
 
 test logic = yarn test
+
 test script = make database name "testFanintek" -> yarn install -> yarn start
 
 # List API
