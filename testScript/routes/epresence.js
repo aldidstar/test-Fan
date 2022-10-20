@@ -20,8 +20,9 @@ router.post("/presence", helpers.verifyToken, async function (req, res) {
   });
 
   if (
+    !checkEpresence ||
     moment(checkEpresence.dataValues.waktu).format("MM-DD-YYYY") !==
-    moment(now).format("MM-DD-YYYY")
+      moment(now).format("MM-DD-YYYY")
   ) {
     await models.Epresence.create({
       userId,
@@ -33,7 +34,6 @@ router.post("/presence", helpers.verifyToken, async function (req, res) {
         res.status(201).json({ user });
       })
       .catch((err) => {
-        console.log(err);
         res.status(500).json({ err });
       });
   } else {
@@ -92,7 +92,6 @@ router.get("/data", helpers.verifyToken, function (req, res, next) {
       });
     })
     .catch((err) => {
-      console.log(err);
       res.status(500).json({ err });
     });
 });
@@ -106,14 +105,30 @@ router.put("/approve", helpers.verifyToken, async function (req, res) {
   });
   const employee = await models.User.findOne({
     where: {
-      id: req.body.id,
+      id: req.body.userId,
     },
   });
 
-  if (spv.dataValues.npp == employee.dataValues.npp_supervisor) {
+  const checkEpresence = await models.Epresence.findOne({
+    where: {
+      userId: req.body.userId,
+    },
+    order: [["waktu", "DESC"]],
+  });
+
+  if (
+    !checkEpresence ||
+    (spv.dataValues.npp == employee.dataValues.npp_supervisor &&
+      checkEpresence.dataValues.is_approve == null)
+  ) {
     models.Epresence.update(
       { is_approve: req.body.is_approve },
-      { where: { id: req.body.id } }
+      {
+        where: {
+          [Op.and]: [{ userId: req.body.userId }, { is_approve: null }],
+        },
+        order: [["waktu", "ASC"]],
+      }
     ).then(function () {
       if (req.body.is_approve === "true") {
         return res.json({
@@ -127,7 +142,7 @@ router.put("/approve", helpers.verifyToken, async function (req, res) {
     });
   } else {
     return res.json({
-      message: "Anda bukan supervisor",
+      message: "Anda bukan supervisor / sudah melakukan approve",
     });
   }
 });
